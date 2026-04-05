@@ -220,7 +220,7 @@ Scripts are in `scripts/` directory:
 
 ## License
 
-MIT License - See LICENSE file for details
+This project is released under the MIT License.
 
 ## Support
 
