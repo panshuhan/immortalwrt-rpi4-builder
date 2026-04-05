@@ -1,0 +1,30 @@
+version: '3'
+
+services:
+  immortalwrt:
+    image: ghcr.io/panshuhan/immortalwrt-rpi4-bypass:latest
+    container_name: immortalwrt-bypass
+    privileged: true
+    restart: always
+    network_mode: macvlan
+    networks:
+      openwrt-net:
+        ipv4_address: 192.168.1.2
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/overlay
+
+networks:
+  openwrt-net:
+    driver: macvlan
+    driver_opts:
+      parent: eth0
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.1
+          ip_range: 192.168.1.2/32
