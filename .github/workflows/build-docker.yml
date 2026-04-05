@@ -54,9 +54,13 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./docker
+          file: ./docker/Dockerfile.lite
           platforms: linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:lite
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.immortalwrt_version || '24.10.5' }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

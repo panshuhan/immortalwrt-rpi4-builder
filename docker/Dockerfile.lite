@@ -1,0 +1,52 @@
+# ImmortalWrt Lite Docker Image (Fast build, no SSR Plus+)
+# Pure ImmortalWrt 24.10.5 based on armsr/armv8 rootfs
+
+FROM alpine:latest AS builder
+
+# Download and extract ImmortalWrt rootfs
+RUN apk add --no-cache wget && \
+    wget -O /tmp/rootfs.tar.gz https://downloads.immortalwrt.org/releases/24.10.5/targets/armsr/armv8/immortalwrt-24.10.5-armsr-armv8-rootfs.tar.gz && \
+    mkdir -p /rootfs && \
+    tar -xzf /tmp/rootfs.tar.gz -C /rootfs
+
+# Final image
+FROM scratch
+
+# Copy ImmortalWrt rootfs
+COPY --from=builder /rootfs/ /
+
+# Set environment
+ENV TZ=Asia/Shanghai
+
+# Update and install packages
+RUN opkg update && \
+    opkg install \
+    luci-ssl \
+    luci-app-passwall \
+    luci-i18n-passwall-zh-cn \
+    luci-app-openclash \
+    luci-app-ddns \
+    luci-i18n-ddns-zh-cn \
+    luci-app-upnp \
+    luci-i18n-upnp-zh-cn \
+    luci-app-vsftpd \
+    luci-i18n-vsftpd-zh-cn \
+    luci-app-samba4 \
+    luci-i18n-samba4-zh-cn \
+    luci-app-ttyd \
+    luci-i18n-ttyd-zh-cn \
+    --force-overwrite || true && \
+    rm -rf /tmp/opkg-lists/*
+
+# Copy custom configuration files
+COPY files/ /
+
+# Expose ports
+EXPOSE 80 443 22
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD wget -q --spider http://127.0.0.1 || exit 1
+
+# Start init system
+CMD ["/sbin/init"]
