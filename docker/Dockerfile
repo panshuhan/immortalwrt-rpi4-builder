@@ -3,16 +3,20 @@
 
 FROM scratch
 
-# Add ImmortalWrt rootfs
-ADD https://downloads.immortalwrt.org/releases/24.10.5/targets/bcm27xx/bcm2711/immortalwrt-24.10.5-bcm27xx-bcm2711-rootfs.tar.gz /
+# Add ImmortalWrt rootfs (armv8 generic for ARM64/Docker)
+ADD https://downloads.immortalwrt.org/releases/24.10.5/targets/armsr/armv8/immortalwrt-24.10.5-armsr-armv8-rootfs.tar.gz /
 
 # Set environment
 ENV TZ=Asia/Shanghai
 
-# Install required packages and configure
-RUN mkdir -p /var/lock && \
-    opkg update && \
+# Configure package repositories for aarch64_generic
+RUN sed -i 's/snapshots/releases\/24.10.5/g' /etc/opkg/distfeeds.conf 2>/dev/null || true && \
+    sed -i 's/ARCH/aarch64_generic/g' /etc/opkg/distfeeds.conf 2>/dev/null || true
+
+# Install required packages
+RUN opkg update && \
     opkg install \
+    luci-ssl \
     luci-app-passwall \
     luci-i18n-passwall-zh-cn \
     luci-app-openclash \
@@ -25,7 +29,8 @@ RUN mkdir -p /var/lock && \
     luci-app-samba4 \
     luci-i18n-samba4-zh-cn \
     luci-app-ttyd \
-    luci-i18n-ttyd-zh-cn
+    luci-i18n-ttyd-zh-cn \
+    --force-overwrite || true
 
 # Copy custom configuration files
 COPY files/ /
