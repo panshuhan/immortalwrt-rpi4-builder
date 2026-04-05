@@ -1,0 +1,196 @@
+name: Build ImmortalWrt for Raspberry Pi 4
+
+on:
+  workflow_dispatch:
+    inputs:
+      immortalwrt_version:
+        description: 'ImmortalWrt Version'
+        required: false
+        default: '24.10.5'
+        type: string
+
+env:
+  IMMORTALWRT_VERSION: ${{ github.event.inputs.immortalwrt_version || '24.10.5' }}
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show build information
+        run: |
+          echo "========================================="
+          echo "ImmortalWrt Build Information"
+          echo "========================================="
+          echo "Version: ${{ env.IMMORTALWRT_VERSION }}"
+          echo "Target: Raspberry Pi 4 (bcm27xx/bcm2711)"
+          echo "Build: #${{ github.run_number }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "========================================="
+
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Prepare ImageBuilder
+        run: |
+          bash scripts/prepare-imagebuilder.sh ${{ env.IMMORTALWRT_VERSION }}
+
+      - name: Add custom repositories
+        run: |
+          bash scripts/add-custom-repos.sh
+
+      - name: Customize firmware settings
+        run: |
+          bash scripts/customize-firmware.sh
+
+      - name: Build firmware
+        id: build
+        run: |
+          echo "========================================="
+          echo "Building ImmortalWrt Firmware"
+          echo "========================================="
+
+          cd imagebuilder
+
+          # Read package list (remove comments and empty lines)
+          PACKAGES=$(cat ../config/packages.list | grep -v '^#' | grep -v '^$' | tr '\n' ' ')
+
+          echo "Packages to install:"
+          echo "$PACKAGES" | tr ' ' '\n' | sed 's/^/  - /'
+          echo ""
+
+          # Build firmware
+          make image \
+            PACKAGES="$PACKAGES" \
+            FILES="../config/custom-files/" \
+            || { echo "ERROR: Firmware build failed"; exit 1; }
+
+          echo ""
+          echo "========================================="
+          echo "Build completed successfully!"
+          echo "========================================="
+
+          # List generated files
+          echo "Generated firmware files:"
+          ls -lh bin/targets/bcm27xx/bcm2711/*.img.gz
+
+      - name: Organize firmware files
+        run: |
+          mkdir -p release
+
+          # Copy firmware images
+          cp imagebuilder/bin/targets/bcm27xx/bcm2711/*-squashfs-*.img.gz release/ || true
+          cp imagebuilder/bin/targets/bcm27xx/bcm2711/*-ext4-*.img.gz release/ || true
+
+          # Rename files with date
+          cd release
+          DATE=$(date +%Y%m%d)
+          for file in *.img.gz; do
+            if [ -f "$file" ]; then
+              NEW_NAME=$(echo "$file" | sed "s/immortalwrt-/immortalwrt-${DATE}-/")
+              mv "$file" "$NEW_NAME"
+              echo "Renamed: $file -> $NEW_NAME"
+            fi
+          done
+
+          # Generate SHA256 checksums
+          sha256sum *.img.gz > sha256sums.txt
+
+          echo ""
+          echo "Release files:"
+          ls -lh
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          DATE=$(date +"%Y-%m-%d")
+          TIME=$(date +"%H:%M:%S UTC" -u)
+
+          cat > release_notes.md << EOL
+          ## ImmortalWrt ${{ env.IMMORTALWRT_VERSION }} for Raspberry Pi 4
+
+          **Build Information:**
+          - Build Number: #${{ github.run_number }}
+          - Build Date: ${DATE} ${TIME}
+          - ImmortalWrt Version: ${{ env.IMMORTALWRT_VERSION }}
+          - Target: bcm27xx/bcm2711 (Raspberry Pi 4)
+
+          **Included Features:**
+          - Proxy Tools: Passwall, OpenClash, SSR Plus+
+          - AdGuard Home for ad blocking
+          - System utilities: DDNS, UPnP, Samba, FTP, TTY
+          - Chinese language support
+
+          **Default Settings:**
+          - LAN IP: 192.168.1.1
+          - WiFi: Disabled (enable after first boot)
+          - Timezone: Asia/Shanghai
+
+          **Installation:**
+          1. Download the appropriate image file (squashfs for most users)
+          2. Verify with SHA256: \`sha256sum -c sha256sums.txt\`
+          3. Flash to SD card: \`dd if=*.img.gz of=/dev/sdX bs=4M\`
+          4. Boot your Raspberry Pi 4
+          5. Access via http://192.168.1.1
+
+          **Files:**
+          - \`*-squashfs-*.img.gz\` - Recommended for most users (read-only root)
+          - \`*-ext4-*.img.gz\` - For advanced users (writable root)
+          - \`sha256sums.txt\` - SHA256 checksums for verification
+
+          **Support:**
+          - ImmortalWrt: https://github.com/immortalwrt/immortalwrt
+          - kenzok8 packages: https://github.com/kenzok8/openwrt-packages
+          EOL
+
+          cat release_notes.md
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.IMMORTALWRT_VERSION }}-${{ github.run_number }}
+          name: ImmortalWrt ${{ env.IMMORTALWRT_VERSION }} Build ${{ github.run_number }}
+          body_path: release_notes.md
+          files: release/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: build-logs
+          path: |
+            imagebuilder/build_dir/target-*/root-*/tmp/*.log
+            imagebuilder/.config
+          retention-days: 7
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "========================================="
+          echo "Build Summary"
+          echo "========================================="
+          echo "Status: ${{ job.status }}"
+          echo "ImmortalWrt Version: ${{ env.IMMORTALWRT_VERSION }}"
+          echo "Build Number: ${{ github.run_number }}"
+          if [ -d "release" ]; then
+            echo "Firmware files generated:"
+            ls -lh release/
+          fi
+          echo "========================================="
