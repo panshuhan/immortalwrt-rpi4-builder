@@ -47,32 +47,26 @@ fi
 echo "Custom repositories added successfully"
 
 echo ""
-echo "Step 4: Updating package index..."
+echo "Step 4: Verifying ImageBuilder setup..."
 cd imagebuilder
 
-# Update package index
-make package_index || {
-    echo "ERROR: Failed to update package index"
-    echo "This might be a network issue. Check repository URLs."
+# Verify ImageBuilder is ready (no need to run make package_index for external repos)
+if [ ! -f "Makefile" ]; then
+    echo "ERROR: ImageBuilder Makefile not found"
     exit 1
-}
+fi
+
+echo "ImageBuilder is ready to use with custom repositories"
 
 cd ..
 
 echo ""
-echo "Step 5: Verifying package availability..."
-cd imagebuilder
-
-# Check if some key packages are available
-for pkg in luci-app-passwall luci-app-openclash luci-app-ssr-plus; do
-    if make package_whatdepends PACKAGE="$pkg" 2>/dev/null | grep -q "$pkg"; then
-        echo "✓ Package available: $pkg"
-    else
-        echo "⚠ Package not found: $pkg (might need manual verification)"
-    fi
-done
-
-cd ..
+echo "Step 5: Configuration summary..."
+echo "Custom repositories added:"
+echo "  - kenzok8_packages (aarch64_cortex-a72)"
+echo "  - kenzok8_luci"
+echo ""
+echo "Note: Package availability will be verified during build"
 
 echo ""
 echo "========================================="
