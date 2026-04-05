@@ -6,7 +6,7 @@
 luci-app-passwall
 luci-app-openclash
 luci-i18n-passwall-zh-cn
-luci-i18n-openclash-zh-cn
+# luci-i18n-openclash-zh-cn (not available in official repo)
 
 # Utility Tools
 luci-app-ddns
