@@ -1,19 +1,19 @@
 # ImmortalWrt Docker Image for Raspberry Pi 4 Bypass Router
-# Based on ImmortalWrt 24.10.5 rootfs
+# Based on OpenWrt official Docker image with ImmortalWrt packages
 
-FROM scratch
-
-# Add ImmortalWrt rootfs (armv8 generic for ARM64/Docker)
-ADD https://downloads.immortalwrt.org/releases/24.10.5/targets/armsr/armv8/immortalwrt-24.10.5-armsr-armv8-rootfs.tar.gz /
+FROM openwrt/rootfs:aarch64-openwrt-23.05
 
 # Set environment
 ENV TZ=Asia/Shanghai
 
-# Configure package repositories for aarch64_generic
-RUN sed -i 's/snapshots/releases\/24.10.5/g' /etc/opkg/distfeeds.conf 2>/dev/null || true && \
-    sed -i 's/ARCH/aarch64_generic/g' /etc/opkg/distfeeds.conf 2>/dev/null || true
+# Add ImmortalWrt package feeds
+RUN echo "src/gz immortalwrt_core https://downloads.immortalwrt.org/releases/24.10.5/targets/armsr/armv8/packages" >> /etc/opkg/distfeeds.conf && \
+    echo "src/gz immortalwrt_base https://downloads.immortalwrt.org/releases/24.10.5/packages/aarch64_generic/base" >> /etc/opkg/distfeeds.conf && \
+    echo "src/gz immortalwrt_luci https://downloads.immortalwrt.org/releases/24.10.5/packages/aarch64_generic/luci" >> /etc/opkg/distfeeds.conf && \
+    echo "src/gz immortalwrt_packages https://downloads.immortalwrt.org/releases/24.10.5/packages/aarch64_generic/packages" >> /etc/opkg/distfeeds.conf && \
+    echo "src/gz immortalwrt_routing https://downloads.immortalwrt.org/releases/24.10.5/packages/aarch64_generic/routing" >> /etc/opkg/distfeeds.conf
 
-# Install required packages
+# Update and install packages
 RUN opkg update && \
     opkg install \
     luci-ssl \
@@ -30,7 +30,8 @@ RUN opkg update && \
     luci-i18n-samba4-zh-cn \
     luci-app-ttyd \
     luci-i18n-ttyd-zh-cn \
-    --force-overwrite || true
+    --force-overwrite || true && \
+    rm -rf /tmp/opkg-lists/*
 
 # Copy custom configuration files
 COPY files/ /
