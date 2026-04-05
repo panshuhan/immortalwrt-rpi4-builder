@@ -1,0 +1,16 @@
+# Build artifacts
+imagebuilder/
+release/
+*.img.gz
+*.tar.xz
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
