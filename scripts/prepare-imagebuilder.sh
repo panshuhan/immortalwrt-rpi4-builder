@@ -17,7 +17,7 @@ echo "Target: $TARGET/$SUBTARGET"
 echo ""
 
 # Construct download URL and filename
-IMAGEBUILDER_FILE="immortalwrt-imagebuilder-${VERSION}-${TARGET}-${SUBTARGET}.${PLATFORM}.tar.xz"
+IMAGEBUILDER_FILE="immortalwrt-imagebuilder-${VERSION}-${TARGET}-${SUBTARGET}.${PLATFORM}.tar.zst"
 DOWNLOAD_URL="https://downloads.immortalwrt.org/releases/${VERSION}/targets/${TARGET}/${SUBTARGET}/${IMAGEBUILDER_FILE}"
 
 echo "Step 1: Downloading ImageBuilder..."
@@ -53,10 +53,10 @@ fi
 
 echo ""
 echo "Step 3: Extracting ImageBuilder..."
-tar -xJf "$IMAGEBUILDER_FILE" || { echo "ERROR: Failed to extract ImageBuilder"; exit 1; }
+tar -xf "$IMAGEBUILDER_FILE" || { echo "ERROR: Failed to extract ImageBuilder"; exit 1; }
 
 # Rename extracted directory to 'imagebuilder'
-EXTRACTED_DIR=$(tar -tJf "$IMAGEBUILDER_FILE" | head -1 | cut -f1 -d"/")
+EXTRACTED_DIR=$(tar -tf "$IMAGEBUILDER_FILE" | head -1 | cut -f1 -d"/")
 
 if [ -d "imagebuilder" ]; then
     echo "WARNING: imagebuilder directory already exists, removing it..."
